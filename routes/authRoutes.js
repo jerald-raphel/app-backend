@@ -7,6 +7,7 @@ const Form = require('../models/Form');
 
 // Now you can use the Form model here
 
+const bcrypt = require('bcrypt');
 
 
 const jwt = require('jsonwebtoken');
@@ -456,5 +457,7 @@ router.put('/details/:number/survey/:formId', async (req, res) => {
 });
 
 module.exports = router;
+
+
 
 
