@@ -1,42 +1,60 @@
-const express = require('express');
-const multer = require('multer');
-const Jimp = require('jimp');
-const {
-  BrowserMultiFormatReader,
-  RGBLuminanceSource,
-  BinaryBitmap,
-  HybridBinarizer,
-} = require('@zxing/library');
-
-const Barcode = require('../models/Barcode');
+const express = require("express");
+const multer = require("multer");
+const Jimp = require("jimp");
+const QrCode = require("qrcode-reader");
+const Barcode = require("../models/Barcode");
 
 const router = express.Router();
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-// Use memory storage instead of disk
-const upload = multer({ storage: multer.memoryStorage() });
-
-router.post('/upload', upload.single('barcodeImage'), async (req, res) => {
+router.post("/scan", upload.single("image"), async (req, res) => {
   try {
-    const buffer = req.file.buffer;
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Image file is required." });
+    }
 
-    const image = await Jimp.read(buffer);
-    const luminanceSource = new RGBLuminanceSource(
-      new Uint8ClampedArray(image.bitmap.data),
-      image.bitmap.width,
-      image.bitmap.height
-    );
+    const imageBuffer = req.file.buffer;
 
-    const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
-    const reader = new BrowserMultiFormatReader();
-    const result = reader.decode(binaryBitmap);
+    // Decode QR using Jimp + qrcode-reader
+    const image = await Jimp.read(imageBuffer);
+    const qr = new QrCode();
 
-    // Save scanned code to MongoDB
-    await Barcode.create({ code: result.getText() });
+    qr.callback = async (err, value) => {
+      if (err || !value) {
+        return res.status(400).json({
+          success: false,
+          message: "QR not detected or unreadable.",
+          error: err?.message || "No value returned",
+        });
+      }
 
-    res.json({ success: true, code: result.getText() });
-  } catch (err) {
-    console.error('Error decoding barcode:', err.message);
-    res.status(500).json({ success: false, message: 'Failed to read barcode' });
+      const qrValue = value.result;
+
+      const barcodeData = await Barcode.findOne({ value: qrValue });
+
+      if (barcodeData) {
+        return res.json({
+          success: true,
+          message: "QR matched",
+          data: barcodeData,
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: "Unknown QR",
+        });
+      }
+    };
+
+    qr.decode(image.bitmap);
+  } catch (error) {
+    console.error("QR Decode error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "QR decode failed",
+      error: error.message,
+    });
   }
 });
 
