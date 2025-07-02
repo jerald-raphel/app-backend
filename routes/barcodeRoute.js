@@ -139,5 +139,54 @@ router.post("/scan", upload.single("image"), async (req, res) => {
   }
 });
 
+router.post("/text", async (req, res) => {
+  try {
+    const { barcode } = req.body;
+
+    if (!barcode) {
+      return res.status(400).json({ success: false, message: "QR value is required" });
+    }
+
+    // Step 1: Find barcode
+    const barcodeData = await Barcode.findOne({ value: barcode });
+
+    if (!barcodeData) {
+      return res.status(404).json({
+        success: false,
+        message: "Unknown QR - No barcode found in DB",
+      });
+    }
+
+    // Step 2: Find all assignments with this QR
+    const assignmentList = await Assignment.find({ value: barcode });
+
+    const assignmentsWithQuestions = await Promise.all(
+      assignmentList.map(async (assignment) => {
+        const form = await Form.findById(assignment.formId).select("questions");
+        return {
+          _id: assignment._id,
+          formTitle: assignment.formTitle,
+          formId: assignment.formId,
+          assignedAt: assignment.assignedAt,
+          image: assignment.image,
+          questions: form?.questions || [],
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      barcode: barcode,
+      assignments: assignmentsWithQuestions,
+    });
+  } catch (error) {
+    console.error("Text QR decode error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "QR decode from text failed",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;
