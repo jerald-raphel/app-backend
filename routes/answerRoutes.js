@@ -68,9 +68,65 @@ const router = express.Router();
 const Form = require("../models/From");
 
 // POST /responses/submit - Submit multiple answers to a form
+// router.post("/submit", async (req, res) => {
+//   try {
+//     const { formId, answers, user } = req.body;
+
+//     if (!formId || !user?.email || !Array.isArray(answers) || answers.length === 0) {
+//       return res.status(400).json({ message: "formId, user email, and answers are required." });
+//     }
+
+//     // Step 1: Find the form
+//     const form = await Form.findById(formId);
+//     if (!form) {
+//       return res.status(404).json({ message: "Form not found." });
+//     }
+
+//     // 🔒 Step 2: Check if the user already submitted the form
+//     const alreadySubmitted = form.responses.some(r => r.user.email === user.email);
+//     if (alreadySubmitted) {
+//       return res.status(409).json({
+//         success: false,
+//         message: "You have already submitted this form."
+//       });
+//     }
+
+//     // ✅ Step 3: Prepare the response
+//     const response = {
+//       user: {
+//         email: user.email
+//       },
+//       answers: answers.map((ans) => ({
+//         question: ans.question,
+//         answerType: ans.answerType,
+//         yesOrNo: ans.selectedAnswer || ans.yesOrNo || null,
+//         dropdownChoice: ans.dropdownChoice || null,
+//         dropdownYesOrNo: ans.dropdownYesOrNo || null,
+//         imageUri: ans.imageUri || null,
+//         textField: ans.textField || ""
+//       }))
+//     };
+
+//     // Step 4: Save the response
+//     form.responses.push(response);
+//     await form.save();
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Answers submitted successfully.",
+//       data: response,
+//     });
+//   } catch (error) {
+//     console.error("Error submitting answers:", error);
+//     res.status(500).json({ success: false, message: "Internal server error." });
+//   }
+// });
+
+
+
 router.post("/submit", async (req, res) => {
   try {
-    const { formId, answers, user } = req.body;
+    const { formId, answers, user, location } = req.body;
 
     if (!formId || !user?.email || !Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ message: "formId, user email, and answers are required." });
@@ -91,10 +147,14 @@ router.post("/submit", async (req, res) => {
       });
     }
 
-    // ✅ Step 3: Prepare the response
+    // ✅ Step 3: Prepare the response with location
     const response = {
       user: {
         email: user.email
+      },
+      location: {
+        place: location?.place || "Unknown",
+        timestamp: location?.timestamp || new Date()
       },
       answers: answers.map((ans) => ({
         question: ans.question,
