@@ -3,6 +3,7 @@ const router = express.Router();
 const Assignment = require("../models/Assignment");
 const User = require("../models/User");
 const Form = require("../models/From");
+const Barcode = require("../models/Barcode");
 //const Response = require("../models/Response")
 // POST /api/assign
 router.post('/', async (req, res) => {
@@ -358,6 +359,106 @@ router.get("/assigned-users-email", async (req, res) => {
   }
 });
 
+//////////////////////////////////////////orginal\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+// POST /assignments
+router.post("/ASSIGNTOQR", async (req, res) => {
+  try {
+    const { barcodeId, formId } = req.body;
+
+    console.log("🟢 Incoming Request: POST /assignments");
+    console.log("📦 Body:", req.body);
+
+    if (!barcodeId || !formId) {
+      return res.status(400).json({ success: false, message: "barcodeId and formId are required." });
+    }
+
+    // Fetch barcode info
+    const barcode = await Barcode.findById(barcodeId);
+    if (!barcode) {
+      return res.status(404).json({ success: false, message: "Barcode not found." });
+    }
+
+    // Fetch form info
+    const form = await Form.findById(formId);
+    if (!form) {
+      return res.status(404).json({ success: false, message: "Form not found." });
+    }
+
+    // Create assignment
+    const newAssignment = new Assignment({
+      value: barcode.value,
+      image: barcode.image,
+      formId: form._id,
+      formTitle: form.title,
+    });
+
+    await newAssignment.save();
+
+    return res.status(201).json({ success: true, message: "Assignment created successfully.", data: newAssignment });
+  } catch (err) {
+    console.error("❌ Error creating assignment:", err);
+    return res.status(500).json({ success: false, message: "Internal server error." });
+  }
+});
+
+
+
+// GET /assignments
+router.get("/assignqr", async (req, res) => {
+  try {
+    const assignments = await Assignment.find().populate("formId");
+    res.json({ success: true, data: assignments });
+  } catch (error) {
+    console.error("Error fetching assignments:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+router.get("/assigned-barcodes", async (req, res) => {
+  try {
+    // Fetch value and image for all assigned barcodes
+    const assignments = await Assignment.find().select("value image");
+
+    if (!assignments || assignments.length === 0) {
+      return res.status(404).json({ success: false, message: "No assigned barcodes found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: assignments, // includes image and value
+    });
+  } catch (error) {
+    console.error("Error fetching assigned barcodes:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch assigned barcodes",
+      error: error.message,
+    });
+  }
+});
+
+
+router.get("/assigned-barcode-forms", async (req, res) => {
+  try {
+    const assignments = await Assignment.find().select("value formTitle");
+
+    if (!assignments || assignments.length === 0) {
+      return res.status(404).json({ message: "No assignments found" });
+    }
+
+    const result = assignments.map((a) => ({
+      barcode: a.value,
+      assigned: a.formTitle,
+    }));
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch assigned barcode-forms",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

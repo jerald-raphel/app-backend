@@ -100,7 +100,7 @@ app.use("/assign", require("./routes/assign"));
 app.use("/answer", require("./routes/answerRoutes"));
 app.use("/barcode", require("./routes/barcode")); // for save and fetch
 app.use("/barcode-scan", require("./routes/barcodeRoute")); // for verification
-
+app.use("/location", require("./routes/locationRoute"));
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -82,7 +82,16 @@ router.post("/submit", async (req, res) => {
       return res.status(404).json({ message: "Form not found." });
     }
 
-    // Step 2: Create the new response object
+    // 🔒 Step 2: Check if the user already submitted the form
+    const alreadySubmitted = form.responses.some(r => r.user.email === user.email);
+    if (alreadySubmitted) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already submitted this form."
+      });
+    }
+
+    // ✅ Step 3: Prepare the response
     const response = {
       user: {
         email: user.email
@@ -90,7 +99,7 @@ router.post("/submit", async (req, res) => {
       answers: answers.map((ans) => ({
         question: ans.question,
         answerType: ans.answerType,
-        yesOrNo: ans.yesOrNo || null,
+        yesOrNo: ans.selectedAnswer || ans.yesOrNo || null,
         dropdownChoice: ans.dropdownChoice || null,
         dropdownYesOrNo: ans.dropdownYesOrNo || null,
         imageUri: ans.imageUri || null,
@@ -98,10 +107,8 @@ router.post("/submit", async (req, res) => {
       }))
     };
 
-    // Step 3: Push the response to the form's responses array
+    // Step 4: Save the response
     form.responses.push(response);
-
-    // Step 4: Save the updated form
     await form.save();
 
     res.status(201).json({
@@ -114,5 +121,6 @@ router.post("/submit", async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 });
+
 
 module.exports = router;
