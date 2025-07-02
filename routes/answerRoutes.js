@@ -182,5 +182,56 @@ router.post("/submit", async (req, res) => {
   }
 });
 
+  router.get('/forms/response-details', async (req, res) => {
+  try {
+    const forms = await Form.find();
 
+    const allResponses = [];
+
+    forms.forEach(form => {
+      const formTitle = form.title;
+
+      form.responses.forEach(response => {
+        const userEmail = response.user?.email || "Unknown";
+        const location = response.location || {};
+        const place = location.place || "Unknown";
+        const timestamp = location.timestamp || null;
+
+        response.answers.forEach(answer => {
+          allResponses.push({
+            title: formTitle,
+            question: answer.question,
+            answer: answer.yesOrNo || answer.dropdownYesOrNo || null,
+            dropdownChoice: answer.dropdownChoice || null,
+            textField: answer.textField || "",
+            imageUri: answer.imageUri || null,
+            user: userEmail,
+            location: {
+              place,
+              timestamp
+            }
+          });
+        });
+      });
+    });
+
+    res.status(200).json({ success: true, count: allResponses.length, data: allResponses });
+  } catch (error) {
+    console.error('Error fetching response details:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+router.get('/submitted-forms', async (req, res) => {
+  try {
+    // Find forms where responses array has at least one item
+    const submittedForms = await Form.find({ 'responses.0': { $exists: true } }).select('title');
+
+    const titles = submittedForms.map((form) => form.title);
+
+    res.status(200).json({ submittedForms: titles });
+  } catch (error) {
+    console.error('Error fetching submitted forms:', error);
+    res.status(500).json({ error: 'Failed to fetch submitted forms' });
+  }
+});
 module.exports = router;
